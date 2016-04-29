@@ -6,5 +6,9 @@
     android:fitsSystemWindows="true"
     tools:context="com.douncoding.guaranteedanp_s.SplashActivity">
 
+    <FrameLayout
+        android:id="@+id/splash_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
 
 </RelativeLayout>
