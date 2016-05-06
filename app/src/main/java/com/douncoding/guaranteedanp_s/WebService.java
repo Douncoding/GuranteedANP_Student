@@ -2,13 +2,17 @@ package com.douncoding.guaranteedanp_s;
 
 import com.douncoding.dao.Instructor;
 import com.douncoding.dao.Lesson;
+import com.douncoding.dao.LessonTime;
 import com.douncoding.dao.Place;
 import com.douncoding.dao.Student;
 
 import java.util.List;
 
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.GET;
+import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
 
@@ -46,6 +50,12 @@ public interface WebService {
     Call<List<Lesson>> loadAllLessons();
 
     /**
+     *
+     */
+    @GET("/lessons/times")
+    Call<List<LessonTime>> getLessonTimes(@Query("lessonName") String lessonName);
+
+    /**
      * 학생 로그인
      * @param email 가입한 주소
      * @param password 비밀번호
@@ -53,4 +63,21 @@ public interface WebService {
      */
     @GET("/students/{email}/login")
     Call<Student> login(@Path("email") String email, @Query("password") String password);
+
+    /**
+     * 수강신청
+     * @param lessonId 강의번호
+     * @param studentId 학생번호
+     * @return 단순 성공/실패
+     */
+    @POST("/enrollments/lessons/{lid}/students/{sid}")
+    Call<ResponseBody> enrollment(@Path("lid") int lessonId, @Path("sid") int studentId);
+
+    /**
+     *
+     * @param studentId
+     * @return
+     */
+    @GET("/enrollments")
+    Call<List<Lesson>> getEnrollmentLesson(@Query("sid") int studentId);
 }

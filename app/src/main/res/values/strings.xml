@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GuaranteedANP_S</string>
+    <string name="app_name">보장받는출결\n(학생용)</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_splash">SplashActivity</string>
     <string name="title_fragment_enrollment">수강신청</string>

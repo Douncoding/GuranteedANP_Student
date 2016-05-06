@@ -1,21 +1,25 @@
 package com.douncoding.guaranteedanp_s;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity {
+import com.douncoding.dao.Student;
+
+public class MainActivity extends AppCompatActivity implements
+        NavigationView.OnNavigationItemSelectedListener {
     public static final String TAG = MainActivity.class.getSimpleName();
 
     DrawerLayout mDrawerLayout;
@@ -26,6 +30,10 @@ public class MainActivity extends AppCompatActivity {
     FloatingActionButton mFab;
 
     LinearLayout mProfileView;
+    TextView mProfileName;
+    TextView mProfileJobs;
+
+    AppContext mApp;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -37,7 +45,12 @@ public class MainActivity extends AppCompatActivity {
         mAppBarLayout = (AppBarLayout)findViewById(R.id.appbar_layout);
         mCollapsingLayout = (CollapsingToolbarLayout)findViewById(R.id.collapsing_layout);
         mFab = (FloatingActionButton)findViewById(R.id.fab);
-        mProfileView = (LinearLayout)findViewById(R.id.student_profile_container);
+        mProfileView = (LinearLayout)findViewById(R.id.profile_container);
+
+        mProfileName = (TextView)findViewById(R.id.profile_name);
+        mProfileJobs = (TextView)findViewById(R.id.profile_jobs);
+
+        mApp = (AppContext) getApplicationContext();
 
         /**
          * 툴바 생성
@@ -71,6 +84,10 @@ public class MainActivity extends AppCompatActivity {
         mDrawerLayout.addDrawerListener(mDrawerToggle);
         mDrawerToggle.syncState();
 
+        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+        //getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         /**
          * Collasping 생성
          */
@@ -82,7 +99,6 @@ public class MainActivity extends AppCompatActivity {
                 if (scrollRange == -1) {
                     scrollRange = appBarLayout.getTotalScrollRange();
                 }
-
                 // 확장된 경우
                 if (scrollRange + verticalOffset == 0) {
                     mProfileView.setVisibility(View.GONE);
@@ -96,33 +112,90 @@ public class MainActivity extends AppCompatActivity {
         });
 
         /**
-         * 수강신청 화면 출력
+         * 내정보 화면
          */
+        setupProfileView();
+
+        showCoursesFragment();
+    }
+
+    private void setupProfileView() {
+        Student student = mApp.내정보.얻기();
+
+        mProfileName.setText(student.getName());
+        mProfileJobs.setText(student.getEmail());
+    }
+
+    private void showEnrollmentFragment() {
+        // 제목표시줄 변경
+        mToolbar.setTitle("수강 편집");
+
+        // FAB 버튼 기능 제정의 (수강목록 화면 보이기)
+        mFab.setImageResource(R.drawable.ic_arrow_back_black_24dp);
         mFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                showCoursesFragment();
             }
         });
+
+        // 화면 표시
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.main_container,
+                        EnrollmentFragment.newInstance(),
+                        EnrollmentFragment.TAG)
+                .commit();
+    }
+
+    private void showCoursesFragment() {
+        // 제목 표시줄 변경
+        mToolbar.setTitle("수강 목록");
+
+        // FAB 기능 재정의 (수강신청 화면 보이기)
+        mFab.setImageResource(R.drawable.ic_add_black_24dp);
+        mFab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showEnrollmentFragment();
+            }
+        });
+
+        // 화면 표시
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.main_container,
+                        CoursesFragment.newInstance(),
+                        CoursesFragment.TAG)
+                .commit();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main_container, new EnrollmentFragment())
-                .commit();
+
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.nav_logout) {
+            mApp.내정보.삭제();
+            Toast.makeText(MainActivity.this
+                    , "로그아웃 : 구현중"
+                    , Toast.LENGTH_SHORT).show();
+        }
+
+        return true;
     }
 }

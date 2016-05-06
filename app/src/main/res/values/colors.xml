@@ -10,4 +10,9 @@
 
     <color name="blackPrimaryDark">#1E1D23</color>
     <color name="blackPrimary">#25252F</color>
+    <color name="white">#FFF</color>
+
+    <color name="colorGreen">#8BC34A</color>
+    <color name="colorYellow">#FFEB3B</color>
+    <color name="colorRed">#FF5722</color>
 </resources>

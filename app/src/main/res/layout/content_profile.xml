@@ -5,7 +5,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <LinearLayout
-        android:id="@+id/student_profile_container"
+        android:id="@+id/profile_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -15,6 +15,7 @@
         android:layout_marginBottom="24dp">
 
         <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/profile_image"
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:src="@drawable/ic_account_white_24dp"
@@ -30,14 +31,17 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/profile_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top"
                 android:textStyle="bold"
                 android:textSize="24sp"
+                android:textColor="@android:color/white"
                 android:text="Sanchez"/>
 
             <TextView
+                android:id="@+id/profile_jobs"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"

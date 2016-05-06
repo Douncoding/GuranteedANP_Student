@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId "com.douncoding.guaranteedanp_s"
         minSdkVersion 21
-        targetSdkVersion 23
+        targetSdkVersion 22
         versionCode 1
         versionName "1.0"
     }
@@ -32,4 +32,5 @@ dependencies {
     compile 'com.squareup.retrofit2:converter-gson:2.0.2'
     compile 'de.hdodenhof:circleimageview:2.0.0'
     compile 'org.greenrobot:greendao:2.2.0'
+    compile 'com.github.alamkanak:android-week-view:1.2.6'
 }

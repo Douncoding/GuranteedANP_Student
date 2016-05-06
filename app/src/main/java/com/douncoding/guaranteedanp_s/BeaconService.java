@@ -6,6 +6,10 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.douncoding.dao.Lesson;
+import com.douncoding.dao.LessonTime;
+import com.douncoding.dao.Place;
+
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
@@ -14,8 +18,12 @@ import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 import org.altbeacon.beacon.powersave.BackgroundPowerSaver;
 
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 
 public class BeaconService extends Service implements BeaconConsumer {
     public static final String TAG = BeaconService.class.getSimpleName();
@@ -35,6 +43,7 @@ public class BeaconService extends Service implements BeaconConsumer {
      */
     private static final int deboundThreshold = 4;
 
+    AppContext mApp;
 
     public BeaconService() { }
 
@@ -56,6 +65,8 @@ public class BeaconService extends Service implements BeaconConsumer {
         new BackgroundPowerSaver(this);
 
         mBeaconManager.bind(this);
+
+        mApp = (AppContext)getApplication();
     }
 
     @Override
@@ -66,6 +77,7 @@ public class BeaconService extends Service implements BeaconConsumer {
         enterBeacons = null;
         mBeaconManager.unbind(this);
     }
+
 
 
     @Override
@@ -89,32 +101,38 @@ public class BeaconService extends Service implements BeaconConsumer {
         } catch (RemoteException e) {    }
     }
 
+    /**
+     * 지역에 진입하는 경우 발생
+     * @param beacon 지역 비콘 정보
+     */
     private void notifyInsertBeacon(Beacon beacon) {
         if (!addNotifiedBeacons.containsKey(beacon)) {
-            Log.i(TAG, "추가");
-            addNotifiedBeacons.put(beacon, true);
-
-            Intent intent = new Intent(BeaconService.this, RegionEnterActivity.class);
-            intent.putExtra(RegionEnterActivity.EXTRA_ENTER_STATE, 1);
-            intent.putExtra(RegionEnterActivity.EXTRA_BEACON_UUID, beacon.getId1().toString());
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
+            // 이벤트가 발생한 경우만 관리
+            if (processEvent(beacon.getId1().toString(), RegionEnterActivity.STATE_DATA_ENTER)) {
+                Log.i(TAG, "이벤트 발생목록: 추가");
+                addNotifiedBeacons.put(beacon, true);
+            }
         } else  {
-            Log.d(TAG, "추가: 이미 전송된 정보");
+            Log.d(TAG, "이벤트 발생목록: 이미 전송된 정보");
         }
     }
 
+    /**
+     * 지역을 이탈하는 경우 발생
+     * @param beacon 지역 비콘 정보
+     */
     private void notifyDeleteBeacon(Beacon beacon) {
-        addNotifiedBeacons.remove(beacon);
-        Log.i(TAG, "삭제");
+        processEvent(beacon.getId1().toString(), RegionEnterActivity.STATE_DATA_EXIT);
 
-        Intent intent = new Intent(BeaconService.this, RegionEnterActivity.class);
-        intent.putExtra(RegionEnterActivity.EXTRA_ENTER_STATE, 0);
-        intent.putExtra(RegionEnterActivity.EXTRA_BEACON_UUID, beacon.getId1().toString());
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        // 이벤트가 발생하지 않은 경우도 처리
+        addNotifiedBeacons.remove(beacon);
+        Log.i(TAG, "이벤트 발생목록: 삭제");
     }
 
+    /**
+     * 비콘 인식 안정화
+     * @param beacons 지역에서 감지되는 모든 비콘 목록
+     */
     private void validateBeaconStatus(Collection<Beacon> beacons) {
         Log.d(TAG, "이전:" + enterBeacons.size() + "//현재:" + beacons.size());
 
@@ -150,6 +168,151 @@ public class BeaconService extends Service implements BeaconConsumer {
                 }
             }
         }
+    }
+
+    /**
+     * 유효한 이벤트인 경우 팝업창 출력을 한다.
+     * 강의시간 중 강의실의 출입내역을 팝업창 생성하는 역할을 한다.
+     * @param uuid 비콘식별자
+     * @return true/false
+     */
+    private boolean processEvent(String uuid, int state) {
+        int pid = getPlaceIdentify(uuid);
+
+        if (pid < 0) {
+            return false;
+        }
+
+        for (Lesson lesson : getOwnLessonList()) {
+
+            // 강의실이 다른 강의는 제외
+            if (lesson.getPid() != pid)
+                continue;
+
+            // 해당 강의의 강의시간 목록
+            for (LessonTime time : lesson.getLessonTimeList()) {
+                // 이벤트 발생!
+                if (isValidateLessonTime(time)) {
+                    Log.i(TAG, String.format(Locale.getDefault(), "%s 시작시간:%s 종료시간:%s",
+                            lesson.getName(), time.getStartTime(), time.getEndTime()));
+
+                    Intent intent = new Intent(BeaconService.this, RegionEnterActivity.class);
+                    intent.setAction(RegionEnterActivity.ACTION_BEACON_EVENT);
+                    intent.putExtra(RegionEnterActivity.EXTRA_ENTER_STATE, state);
+                    intent.putExtra(RegionEnterActivity.EXTRA_LESSONTIME_ID, time.getId().intValue());
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    return true;
+                }
+            }
+        }
+
+        Log.d(TAG, "이벤트는 발생했지만, 수업시간이 아닌 시간에 입장");
+        return false;
+    }
+
+
+    /**
+     * 비콘 UUID 값을 이용해 강의실번호(식별자)를 구한다.
+     * @param uuid 비콘 UUID
+     * @return 강의실 번호
+     */
+    private int getPlaceIdentify(String uuid) {
+        List<Place> placeList = mApp.openDBReadable().getPlaceDao().loadAll();
+
+        for (Place place : placeList) {
+            if (place.getUuid().equals(uuid)) {
+                Log.i(TAG, String.format(Locale.getDefault(), "발생위치 강의실:%s 번호:%d",
+                        place.getName(), place.getId().intValue()));
+                return place.getId().intValue();
+            }
+        }
+
+        Log.w(TAG, "알수 없는 UUID:" + uuid);
+        return -1;
+    }
+
+    /**
+     * @return 내 수강 목록
+     */
+    private List<Lesson> getOwnLessonList() {
+        List<Lesson> lessons = new ArrayList<>();
+
+        for (Lesson item : mApp.openDBReadable().getLessonDao().loadAll()) {
+            if (item.getEnrollment() != null && item.getEnrollment() == 1) {
+                lessons.add(item);
+                //Log.i(TAG, "내 수강신청 목록:" + item.getName());
+            }
+        }
+
+        if (lessons.size() == 0) {
+            Log.w(TAG, "내 수강신청 목록 없음:");
+        }
+
+        return lessons;
+    }
+
+    /**
+     * 입력된 강의시간이 오늘날짜에 포함되는지 확인한다.
+     * 강의시작 시간 10분전부터 관리대상
+     * @param time 확인을 원하는 강의시간
+     * @return 포함여부
+     */
+    private boolean isValidateLessonTime(LessonTime time) {
+        Calendar currentDate = Calendar.getInstance();
+        Calendar startDate = Calendar.getInstance();
+        Calendar endDate = Calendar.getInstance();
+
+        String[] startHourAndMin = time.getStartTime().split(":");
+        String[] endHourAndMin = time.getEndTime().split(":");
+
+        startDate.setTime(time.getStartDate());
+        endDate.setTime(time.getEndDate());
+
+        // 사이 날짜인지 확인
+        if (currentDate.getTimeInMillis() < startDate.getTimeInMillis() ||
+                currentDate.getTimeInMillis() > endDate.getTimeInMillis()) {
+            Log.i(TAG, "포함되지 않는 날짜: " +
+                    String.format(Locale.getDefault(), "시작:%d 현재:%d 종료:%d",
+                            startDate.getTimeInMillis(),
+                            currentDate.getTimeInMillis(),
+                            endDate.getTimeInMillis()));
+            return false;
+        }
+
+        // 요일이 같은지 확인
+        if (currentDate.get(Calendar.DAY_OF_WEEK) != time.getDay()) {
+            Log.i(TAG, "현재 요일:" + currentDate.get(Calendar.DAY_OF_WEEK) +
+                    " 과목 요일:" + time.getDay());
+            return false;
+        }
+
+        // 사이 시간인지 확인
+        Calendar startTime = Calendar.getInstance();
+        startTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(startHourAndMin[0]));
+        startTime.set(Calendar.MINUTE, Integer.valueOf(startHourAndMin[1]));
+        Calendar endTime = Calendar.getInstance();
+        endTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(endHourAndMin[0]));
+        endTime.set(Calendar.MINUTE, Integer.valueOf(endHourAndMin[1]));
+
+        // 사이 날짜인지 확인
+        if (currentDate.getTimeInMillis() < startTime.getTimeInMillis() ||
+                currentDate.getTimeInMillis() > endTime.getTimeInMillis()) {
+            Log.i(TAG, "포함되지 않는 시간: " +
+                    String.format(Locale.getDefault(), "시작:%s 현재:%s 종료:%s",
+                            startDate.getTime(),
+                            currentDate.getTime(),
+                            endDate.getTime()));
+            return false;
+        }
+
+        // 시간확인
+        Log.i(TAG, "포함시간: " +
+                String.format(Locale.getDefault(), "시작:%d 현재:%d 종료:%d",
+                        startDate.getTimeInMillis(),
+                        currentDate.getTimeInMillis(),
+                        endDate.getTimeInMillis()));
+        return true;
     }
 }
 

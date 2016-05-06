@@ -30,10 +30,11 @@ public class LessonDao extends AbstractDao<Lesson, Long> {
         public final static Property Name = new Property(1, String.class, "name", false, "NAME");
         public final static Property Desc = new Property(2, String.class, "desc", false, "DESC");
         public final static Property Personnel = new Property(3, Integer.class, "personnel", false, "PERSONNEL");
-        public final static Property CreateAt = new Property(4, java.util.Date.class, "createAt", false, "CREATE_AT");
-        public final static Property UpdateAt = new Property(5, java.util.Date.class, "updateAt", false, "UPDATE_AT");
-        public final static Property Pid = new Property(6, long.class, "pid", false, "PID");
-        public final static Property Iid = new Property(7, long.class, "iid", false, "IID");
+        public final static Property Enrollment = new Property(4, Integer.class, "enrollment", false, "ENROLLMENT");
+        public final static Property CreateAt = new Property(5, java.util.Date.class, "createAt", false, "CREATE_AT");
+        public final static Property UpdateAt = new Property(6, java.util.Date.class, "updateAt", false, "UPDATE_AT");
+        public final static Property Pid = new Property(7, long.class, "pid", false, "PID");
+        public final static Property Iid = new Property(8, long.class, "iid", false, "IID");
     };
 
     private DaoSession daoSession;
@@ -56,10 +57,11 @@ public class LessonDao extends AbstractDao<Lesson, Long> {
                 "\"NAME\" TEXT," + // 1: name
                 "\"DESC\" TEXT," + // 2: desc
                 "\"PERSONNEL\" INTEGER," + // 3: personnel
-                "\"CREATE_AT\" INTEGER," + // 4: createAt
-                "\"UPDATE_AT\" INTEGER," + // 5: updateAt
-                "\"PID\" INTEGER NOT NULL ," + // 6: pid
-                "\"IID\" INTEGER NOT NULL );"); // 7: iid
+                "\"ENROLLMENT\" INTEGER," + // 4: enrollment
+                "\"CREATE_AT\" INTEGER," + // 5: createAt
+                "\"UPDATE_AT\" INTEGER," + // 6: updateAt
+                "\"PID\" INTEGER NOT NULL ," + // 7: pid
+                "\"IID\" INTEGER NOT NULL );"); // 8: iid
     }
 
     /** Drops the underlying database table. */
@@ -93,17 +95,22 @@ public class LessonDao extends AbstractDao<Lesson, Long> {
             stmt.bindLong(4, personnel);
         }
  
+        Integer enrollment = entity.getEnrollment();
+        if (enrollment != null) {
+            stmt.bindLong(5, enrollment);
+        }
+ 
         java.util.Date createAt = entity.getCreateAt();
         if (createAt != null) {
-            stmt.bindLong(5, createAt.getTime());
+            stmt.bindLong(6, createAt.getTime());
         }
  
         java.util.Date updateAt = entity.getUpdateAt();
         if (updateAt != null) {
-            stmt.bindLong(6, updateAt.getTime());
+            stmt.bindLong(7, updateAt.getTime());
         }
-        stmt.bindLong(7, entity.getPid());
-        stmt.bindLong(8, entity.getIid());
+        stmt.bindLong(8, entity.getPid());
+        stmt.bindLong(9, entity.getIid());
     }
 
     @Override
@@ -126,10 +133,11 @@ public class LessonDao extends AbstractDao<Lesson, Long> {
             cursor.isNull(offset + 1) ? null : cursor.getString(offset + 1), // name
             cursor.isNull(offset + 2) ? null : cursor.getString(offset + 2), // desc
             cursor.isNull(offset + 3) ? null : cursor.getInt(offset + 3), // personnel
-            cursor.isNull(offset + 4) ? null : new java.util.Date(cursor.getLong(offset + 4)), // createAt
-            cursor.isNull(offset + 5) ? null : new java.util.Date(cursor.getLong(offset + 5)), // updateAt
-            cursor.getLong(offset + 6), // pid
-            cursor.getLong(offset + 7) // iid
+            cursor.isNull(offset + 4) ? null : cursor.getInt(offset + 4), // enrollment
+            cursor.isNull(offset + 5) ? null : new java.util.Date(cursor.getLong(offset + 5)), // createAt
+            cursor.isNull(offset + 6) ? null : new java.util.Date(cursor.getLong(offset + 6)), // updateAt
+            cursor.getLong(offset + 7), // pid
+            cursor.getLong(offset + 8) // iid
         );
         return entity;
     }
@@ -141,10 +149,11 @@ public class LessonDao extends AbstractDao<Lesson, Long> {
         entity.setName(cursor.isNull(offset + 1) ? null : cursor.getString(offset + 1));
         entity.setDesc(cursor.isNull(offset + 2) ? null : cursor.getString(offset + 2));
         entity.setPersonnel(cursor.isNull(offset + 3) ? null : cursor.getInt(offset + 3));
-        entity.setCreateAt(cursor.isNull(offset + 4) ? null : new java.util.Date(cursor.getLong(offset + 4)));
-        entity.setUpdateAt(cursor.isNull(offset + 5) ? null : new java.util.Date(cursor.getLong(offset + 5)));
-        entity.setPid(cursor.getLong(offset + 6));
-        entity.setIid(cursor.getLong(offset + 7));
+        entity.setEnrollment(cursor.isNull(offset + 4) ? null : cursor.getInt(offset + 4));
+        entity.setCreateAt(cursor.isNull(offset + 5) ? null : new java.util.Date(cursor.getLong(offset + 5)));
+        entity.setUpdateAt(cursor.isNull(offset + 6) ? null : new java.util.Date(cursor.getLong(offset + 6)));
+        entity.setPid(cursor.getLong(offset + 7));
+        entity.setIid(cursor.getLong(offset + 8));
      }
     
     /** @inheritdoc */

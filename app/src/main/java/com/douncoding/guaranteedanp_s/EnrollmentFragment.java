@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +25,7 @@ import org.w3c.dom.Text;
 import java.util.ArrayList;
 import java.util.List;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -123,7 +125,6 @@ public class EnrollmentFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-
         mLessons.clear();
     }
 
@@ -148,11 +149,13 @@ public class EnrollmentFragment extends Fragment {
             holder.mPersonnelText.setText(String.valueOf(item.getPersonnel()));
 
             if (mInstructorsDao != null) {
-                Instructor instructor = mInstructorsDao.load(item.getId());
+                Instructor instructor = mInstructorsDao.load(item.getIid());
 
                 if (instructor != null) {
                     holder.mLNameText.setText(instructor.getName());
                     holder.mLJobsText.setText(instructor.getJobs());
+                } else {
+                    Log.w(TAG, "강사번호를 찾을수 없음: 강사번호:" + item.getIid());
                 }
             }
 
@@ -166,6 +169,11 @@ public class EnrollmentFragment extends Fragment {
         @Override
         public int getItemCount() {
             return mLessons.size();
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return super.getItemViewType(position);
         }
 
         public class ViewHolder extends RecyclerView.ViewHolder
@@ -214,10 +222,33 @@ public class EnrollmentFragment extends Fragment {
                         expandedPosition = getPosition();
                         notifyItemChanged(expandedPosition);
                         break;
+                    // 수강신청 버튼 클릭
                     case R.id.enrollment_post_action:
-                        Toast.makeText(getContext()
-                                , "수강신청 항목번호:" + getPosition()
-                                , Toast.LENGTH_SHORT).show();
+                        int lid = mLessons.get(getPosition()).getId().intValue();
+                        int sid = mApp.내정보.얻기().getId().intValue();
+
+                        // 서버 등록 요청
+                        mWebService.enrollment(lid, sid).enqueue(new Callback<ResponseBody>() {
+                            @Override
+                            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                                if (response.code() == 200) {
+                                    // 수강신청 성공
+                                    Toast.makeText(getContext(),
+                                            mLessons.get(getPosition()).getName() + " 수강신청 완료",
+                                            Toast.LENGTH_SHORT).show();
+                                } else {
+                                    // 수강신청 실패
+                                    Toast.makeText(getContext(),
+                                            mLessons.get(getPosition()).getName() + " 수강신청 실패",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Call<ResponseBody> call, Throwable t) {
+
+                            }
+                        });
                         break;
                 }
             }

@@ -107,7 +107,8 @@ public class LoginFragment extends Fragment {
                         mApp.내정보.저장(response.body());
                         onListener.onLogin(true);
                     } else {
-                        Log.w(TAG, "로그인 결과는 정상이지만, 학생정보를 받지 못함");
+                        Log.w(TAG, "로그인 실패: 일치하는 정보 없음");
+                        onListener.onLogin(false);
                     }
                 }
 

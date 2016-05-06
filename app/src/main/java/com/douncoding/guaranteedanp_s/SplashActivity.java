@@ -1,16 +1,28 @@
 package com.douncoding.guaranteedanp_s;
 
+import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.douncoding.dao.Instructor;
 import com.douncoding.dao.Lesson;
+import com.douncoding.dao.LessonDao;
+import com.douncoding.dao.LessonTime;
 import com.douncoding.dao.Place;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+import java.io.IOException;
 import java.util.List;
 
 import retrofit2.Call;
@@ -30,7 +42,7 @@ public class SplashActivity extends AppCompatActivity implements
      * 로딩순서 정의
      */
     enum LoadingStep {
-        INIT, INSTRUCTOR, PLACE, LESSON, BEACON, COMPLETE
+        INIT, INSTRUCTOR, PLACE, LESSON, LESSONTIMES, BEACON, COMPLETE
     } LoadingStep mCurrentStep;
 
     ProgressDialog mProgDialog;
@@ -177,8 +189,12 @@ public class SplashActivity extends AppCompatActivity implements
                     Log.e(TAG, "강사 목록 동기화 실패:" + t.toString());
                 }
             });
+        } else if (LoadingStep.LESSONTIMES.equals(step)) {
+            mProgDialog.setMessage("내 강의목록 동기화 중");
+            loadOwnerLessonAndTimes(step);
         } else if (LoadingStep.BEACON.equals(step)) {
             mProgDialog.setMessage("비콘 모니터링 서비스 활성화 중");
+            startService(new Intent(this, BeaconService.class));
             loadingNextStep(step);
         } else if (LoadingStep.COMPLETE.equals(step)) {
             mProgDialog.setMessage("로딩완료 시작합니다.");
@@ -190,6 +206,55 @@ public class SplashActivity extends AppCompatActivity implements
             Log.e(TAG, "정의되지 않은 로딩절차 발생: ");
             loadingNextStep(step);
         }
+    }
+
+    /**
+     * 자신의 수강신청내역과 강의 시간 동기화
+     */
+    private void loadOwnerLessonAndTimes(final LoadingStep step) {
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... params) {
+                int ownId = mApp.내정보.얻기().getId().intValue();
+
+                try {
+                    /**
+                     * 내 수강목록 요청
+                     */
+                    List<Lesson> lessons = mWebService.getEnrollmentLesson(ownId).execute().body();
+
+                    LessonDao dao = mApp.openDBReadable().getLessonDao();
+                    for (Lesson lesson : lessons) {
+                        lesson.setEnrollment(Integer.valueOf(1));
+                        dao.update(lesson);
+                        Log.e(TAG, "내수강목록: 강의번호:" + lesson.getId());
+                    }
+
+                    /**
+                     * 수강목록의 강의시간 요청
+                     */
+                    for (Lesson lesson : lessons) {
+                        List<LessonTime> times = mWebService
+                                .getLessonTimes(lesson.getName())
+                                .execute().body();
+
+                        mApp.openDBWritable()
+                                .getLessonTimeDao()
+                                .insertOrReplaceInTx(times);
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                loadingNextStep(step);
+            }
+        }.execute();
     }
 
     private void loadingNextStep(LoadingStep step) {

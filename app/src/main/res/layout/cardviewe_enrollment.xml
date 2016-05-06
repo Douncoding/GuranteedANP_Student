@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -26,7 +27,7 @@
             <de.hdodenhof.circleimageview.CircleImageView
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@drawable/sm_lecture"
+                android:src="@drawable/ic_line_account_black_24dp"
                 app:civ_border_width="2dp"
                 app:civ_border_color="#FFF"/>
 
@@ -102,7 +103,6 @@
                 android:paddingStart="32dp"
                 android:text="@string/enrollment_expanded_button"
                 android:textSize="14sp"
-                android:textColor="@android:color/white"
                 android:textStyle="bold"/>
         </LinearLayout>
 
@@ -111,14 +111,34 @@
             android:id="@+id/container_expanded"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider"/>
 
             <TextView
                 android:id="@+id/enrollment_personnel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textAppearance="?android:attr/textAppearance"/>
+
+            <TextView
+                android:id="@+id/start_day"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/end_day"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/time_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:listitem="@layout/item_list_lesson_time"/>
         </LinearLayout>
     </LinearLayout>
 

@@ -7,7 +7,7 @@ import de.greenrobot.daogenerator.Schema;
 
 public class MainGenerator {
     public static void main(String[] args) throws Exception {
-        Schema schema = new Schema(2, "com.douncoding.dao");
+        Schema schema = new Schema(18, "com.douncoding.dao");
         schema.enableActiveEntitiesByDefault();
 
         addTables(schema);
@@ -24,12 +24,20 @@ public class MainGenerator {
         Entity instructor = addInstructor(schema);
         Entity lesson = addLesson(schema);
         Entity student = addStudent(schema);
+        Entity lessonTime = addLessonTime(schema);
+        Entity track = addTrack(schema);
 
         Property placeId = lesson.addLongProperty("pid").notNull().getProperty();
         Property instructorId = lesson.addLongProperty("iid").notNull().getProperty();
-
         lesson.addToOne(place, placeId);
         lesson.addToOne(instructor, instructorId);
+
+        Property lessonId = lessonTime.addLongProperty("lid").notNull().getProperty();
+        lessonTime.addToOne(lesson, lessonId);
+        lesson.addToMany(lessonTime, lessonId);
+
+        Property lessonTimeId = track.addLongProperty("lessonTimeId").notNull().getProperty();
+        track.addToOne(lessonTime, lessonTimeId);
     }
 
     private static Entity addInstructor(final Schema schema) {
@@ -40,8 +48,6 @@ public class MainGenerator {
         instructor.addStringProperty("email");
         instructor.addStringProperty("phone");
         instructor.addStringProperty("password");
-        //instructor.addDateProperty("createAt");
-        //instructor.addDateProperty("updateAt");
 
         return instructor;
     }
@@ -53,8 +59,6 @@ public class MainGenerator {
         instructor.addStringProperty("email");
         instructor.addStringProperty("phone");
         instructor.addStringProperty("password");
-        //instructor.addDateProperty("createAt");
-        //instructor.addDateProperty("updateAt");
 
         return instructor;
     }
@@ -74,9 +78,30 @@ public class MainGenerator {
         lesson.addStringProperty("name");
         lesson.addStringProperty("desc");
         lesson.addIntProperty("personnel");
+        lesson.addIntProperty("enrollment");
         lesson.addDateProperty("createAt");
         lesson.addDateProperty("updateAt");
 
         return lesson;
+    }
+
+    private static Entity addLessonTime(final Schema schema) {
+        Entity lessonTime = schema.addEntity("LessonTime");
+        lessonTime.addIdProperty().primaryKey();
+        lessonTime.addIntProperty("day");
+        lessonTime.addDateProperty("startDate");
+        lessonTime.addDateProperty("endDate");
+        lessonTime.addStringProperty("startTime");
+        lessonTime.addStringProperty("endTime");
+
+        return lessonTime;
+    }
+
+    private static Entity addTrack(final Schema schema) {
+        Entity track = schema.addEntity("Track");
+        track.addIdProperty().primaryKey().autoincrement();
+        track.addIntProperty("state");
+
+        return track;
     }
 }

@@ -10,6 +10,8 @@ import com.douncoding.dao.DaoMaster;
 import com.douncoding.dao.DaoSession;
 import com.douncoding.dao.Student;
 
+import java.util.Locale;
+
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -41,6 +43,12 @@ public class AppContext extends Application {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         mWebService = retrofit.create(WebService.class);
+
+        // 모든 테이블 초기화 - 로딩과정 중 재생성
+        openDBWritable().getInstructorDao().deleteAll();
+        openDBWritable().getStudentDao().deleteAll();
+        openDBWritable().getLessonDao().deleteAll();
+        openDBWritable().getPlaceDao().deleteAll();
     }
 
     /*
@@ -73,6 +81,47 @@ public class AppContext extends Application {
         return mWebService;
     }
 
+    /**
+     * 현재 입장한 강의실의 상태를 관리
+    class Track {
+        SharedPreferences preferences;
+
+        public Track() {
+            preferences = getSharedPreferences(
+                    Constants.PREFERENCE_NAME, Context.MODE_PRIVATE);
+        }
+
+        public void saveState(int lessonTimeId, int state) {
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putInt("trackId", lessonTimeId);
+            editor.putInt("trackState", state);
+            editor.apply();
+        }
+
+        public int getCurrentTrackId() {
+            return preferences.getInt("trackId", -1);
+        }
+
+        public int getStateOfTrack(int lessonTimeId) {
+            int id = preferences.getInt("trackId", -1);
+
+            if (id != lessonTimeId) {
+                Log.e(TAG, String.format(Locale.getDefault(),
+                        "요청번호:%d 현재번호:%d", lessonTimeId, id));
+                return -1;
+            } else {
+                return preferences.getInt("trackState", -1);
+            }
+        }
+
+        public void clearState(int lessonTimeId) {
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putInt("trackId", -1);
+            editor.putInt("trackState", -1);
+            editor.apply();
+        }
+    }
+     */
 
     /**
      * 로그인 상태를 관리한다. 웹 서버와 세션처리가 없는 구조임에 따라

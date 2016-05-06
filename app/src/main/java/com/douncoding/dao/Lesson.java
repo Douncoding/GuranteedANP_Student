@@ -1,5 +1,6 @@
 package com.douncoding.dao;
 
+import java.util.List;
 import com.douncoding.dao.DaoSession;
 import de.greenrobot.dao.DaoException;
 
@@ -13,6 +14,7 @@ public class Lesson {
     private String name;
     private String desc;
     private Integer personnel;
+    private Integer enrollment;
     private java.util.Date createAt;
     private java.util.Date updateAt;
     private long pid;
@@ -30,6 +32,7 @@ public class Lesson {
     private Instructor instructor;
     private Long instructor__resolvedKey;
 
+    private List<LessonTime> lessonTimeList;
 
     public Lesson() {
     }
@@ -38,11 +41,12 @@ public class Lesson {
         this.id = id;
     }
 
-    public Lesson(Long id, String name, String desc, Integer personnel, java.util.Date createAt, java.util.Date updateAt, long pid, long iid) {
+    public Lesson(Long id, String name, String desc, Integer personnel, Integer enrollment, java.util.Date createAt, java.util.Date updateAt, long pid, long iid) {
         this.id = id;
         this.name = name;
         this.desc = desc;
         this.personnel = personnel;
+        this.enrollment = enrollment;
         this.createAt = createAt;
         this.updateAt = updateAt;
         this.pid = pid;
@@ -85,6 +89,14 @@ public class Lesson {
 
     public void setPersonnel(Integer personnel) {
         this.personnel = personnel;
+    }
+
+    public Integer getEnrollment() {
+        return enrollment;
+    }
+
+    public void setEnrollment(Integer enrollment) {
+        this.enrollment = enrollment;
     }
 
     public java.util.Date getCreateAt() {
@@ -173,6 +185,28 @@ public class Lesson {
             iid = instructor.getId();
             instructor__resolvedKey = iid;
         }
+    }
+
+    /** To-many relationship, resolved on first access (and after reset). Changes to to-many relations are not persisted, make changes to the target entity. */
+    public List<LessonTime> getLessonTimeList() {
+        if (lessonTimeList == null) {
+            if (daoSession == null) {
+                throw new DaoException("Entity is detached from DAO context");
+            }
+            LessonTimeDao targetDao = daoSession.getLessonTimeDao();
+            List<LessonTime> lessonTimeListNew = targetDao._queryLesson_LessonTimeList(id);
+            synchronized (this) {
+                if(lessonTimeList == null) {
+                    lessonTimeList = lessonTimeListNew;
+                }
+            }
+        }
+        return lessonTimeList;
+    }
+
+    /** Resets a to-many relationship, making the next get call to query for a fresh result. */
+    public synchronized void resetLessonTimeList() {
+        lessonTimeList = null;
     }
 
     /** Convenient call for {@link AbstractDao#delete(Object)}. Entity must attached to an entity context. */
