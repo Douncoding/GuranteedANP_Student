@@ -9,4 +9,5 @@
 
     <string name="enrollment_post_button">ENROLLMENT</string>
     <string name="enrollment_expanded_button">EXPLORE</string>
+    <string name="enrollment_cancel_button">CANCEL</string>
 </resources>

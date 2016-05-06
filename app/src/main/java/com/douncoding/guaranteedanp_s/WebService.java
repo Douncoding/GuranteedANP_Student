@@ -5,12 +5,15 @@ import com.douncoding.dao.Lesson;
 import com.douncoding.dao.LessonTime;
 import com.douncoding.dao.Place;
 import com.douncoding.dao.Student;
+import com.douncoding.dao.Track;
 
 import java.util.List;
 
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
@@ -74,10 +77,25 @@ public interface WebService {
     Call<ResponseBody> enrollment(@Path("lid") int lessonId, @Path("sid") int studentId);
 
     /**
+     * 수강취소
+     * @param lessonId 강의번호
+     * @param studentId 학생번호
+     * @return 단순 성공/실패
+     */
+    @DELETE("/enrollments/lessons/{lid}/students/{sid}")
+    Call<ResponseBody> dropCourse(@Path("lid") int lessonId, @Path("sid") int studentId);
+
+    /**
      *
      * @param studentId
      * @return
      */
     @GET("/enrollments")
     Call<List<Lesson>> getEnrollmentLesson(@Query("sid") int studentId);
+
+    /**
+     * 출석인증을 위해 수집한 정보를 서버로 전송
+     */
+    @POST("/attendances/lessons/{lid}/students/{sid}")
+    Call<ResponseBody> attend(@Body Attendance attendance, @Path("lid") int lessonId, @Path("sid") int studentId);
 }

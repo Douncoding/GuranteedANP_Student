@@ -8,10 +8,14 @@ import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.douncoding.dao.Instructor;
@@ -53,10 +57,47 @@ public class SplashActivity extends AppCompatActivity implements
     WebService mWebService;
     AppContext mApp;
 
+    TextView mHideOption;
+    public int optionCount;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
+
+        mHideOption = (TextView)findViewById(R.id.hide_option);
+        mHideOption.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (optionCount++ > 5) {
+                    showHideOptionDialog();
+                }
+            }
+        });
+
+        mApp = (AppContext)getApplicationContext();
+    }
+
+    private void showHideOptionDialog() {
+        final EditText edit = new EditText(this);
+        edit.setText(Constants.HOST);
+
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+        dialog.setTitle("네트워크 설정");
+        dialog.setView(edit);
+        dialog.setPositiveButton("확인", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Constants.HOST = edit.getText().toString();
+                onResume();
+            }
+        });
+        dialog.show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(Constants.HOST)
@@ -64,20 +105,19 @@ public class SplashActivity extends AppCompatActivity implements
                 .build();
 
         mWebService = retrofit.create(WebService.class);
-        mApp = (AppContext)getApplicationContext();
-    }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        if (mApp.내정보.로그인()) {
-            loading(LoadingStep.INIT);
-        } else {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.splash_container, new LoginFragment())
-                    .commit();
-        }
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (mApp.내정보.로그인()) {
+                    loading(LoadingStep.INIT);
+                } else {
+                    getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.splash_container, LoginFragment.newInstance())
+                            .commit();
+                }
+            }
+        }, 2000);
     }
 
     @Override
@@ -112,12 +152,18 @@ public class SplashActivity extends AppCompatActivity implements
      * @param step 현재 로딩 위치
      */
     private void loading(final LoadingStep step) {
-
         if (LoadingStep.INIT.equals(step)) {
             mProgDialog = new ProgressDialog(this);
             mProgDialog.setTitle("로딩중 ...");
             mProgDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
             mProgDialog.show();
+
+            // 내부 모든 테이블 초기화 - 재시작 시점에 재구성
+            mApp.openDBWritable().getLessonDao().deleteAll();
+            mApp.openDBWritable().getPlaceDao().deleteAll();
+            mApp.openDBWritable().getStudentDao().deleteAll();
+            mApp.openDBWritable().getInstructorDao().deleteAll();
+            mApp.openDBWritable().getLessonTimeDao().deleteAll();
 
             loadingNextStep(step);
         } else if (LoadingStep.INSTRUCTOR.equals(step)) {

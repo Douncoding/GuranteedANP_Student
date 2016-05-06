@@ -13,6 +13,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements
     CollapsingToolbarLayout mCollapsingLayout;
     FloatingActionButton mFab;
 
+    RelativeLayout mContainerView;
     LinearLayout mProfileView;
     TextView mProfileName;
     TextView mProfileJobs;
@@ -46,6 +48,7 @@ public class MainActivity extends AppCompatActivity implements
         mCollapsingLayout = (CollapsingToolbarLayout)findViewById(R.id.collapsing_layout);
         mFab = (FloatingActionButton)findViewById(R.id.fab);
         mProfileView = (LinearLayout)findViewById(R.id.profile_container);
+        mContainerView = (RelativeLayout)findViewById(R.id.profile_container_parent);
 
         mProfileName = (TextView)findViewById(R.id.profile_name);
         mProfileJobs = (TextView)findViewById(R.id.profile_jobs);
@@ -176,8 +179,6 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onResume() {
         super.onResume();
-
-
     }
 
     @Override

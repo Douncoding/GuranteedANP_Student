@@ -104,6 +104,16 @@
                 android:text="@string/enrollment_expanded_button"
                 android:textSize="14sp"
                 android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/enrollment_cancel_action"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="32dp"
+                android:visibility="gone"
+                android:text="@string/enrollment_cancel_button"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
         </LinearLayout>
 
         <!-- 확장 뷰 -->
@@ -118,21 +128,100 @@
                 android:layout_height="1dp"
                 android:background="@color/divider"/>
 
-            <TextView
-                android:id="@+id/enrollment_personnel"
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="?android:attr/textAppearance"/>
+                android:orientation="horizontal"
+                android:paddingTop="16dp">
 
-            <TextView
-                android:id="@+id/start_day"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_weight="1">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="4dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/primaryText"
+                        android:text="강의실"/>
 
-            <TextView
-                android:id="@+id/end_day"
+                    <EditText
+                        android:id="@+id/place_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:editable="false"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_weight="1">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="4dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/primaryText"
+                        android:text="인원"/>
+
+                    <EditText
+                        android:id="@+id/personnel_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:editable="false"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_weight="1">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="4dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/primaryText"
+                        android:text="개강일자"/>
+
+                    <EditText
+                        android:id="@+id/start_date_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:editable="false"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_weight="1">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="4dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/primaryText"
+                        android:text="종강일자"/>
+
+                    <EditText
+                        android:id="@+id/end_date_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:editable="false"/>
+                </LinearLayout>
+            </LinearLayout>
 
             <android.support.v7.widget.RecyclerView
                 android:id="@+id/time_list"

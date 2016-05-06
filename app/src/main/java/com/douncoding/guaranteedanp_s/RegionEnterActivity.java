@@ -4,12 +4,13 @@ import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -21,11 +22,16 @@ import android.widget.TextView;
 import com.douncoding.dao.Lesson;
 import com.douncoding.dao.LessonTime;
 import com.douncoding.dao.Track;
+import com.douncoding.dao.TrackDao;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 /**
  * 출석 처리
@@ -35,8 +41,8 @@ import java.util.Locale;
 public class RegionEnterActivity extends Activity {
     public static final String TAG = RegionEnterActivity.class.getSimpleName();
 
-    public static final String ACTION_LESSON_FINISHED = "ACTION_LESSON_FINISHED";
-    public static final String ACTION_BEACON_EVENT = "ACTION_BEACON_EVENT";
+    public static final String ACTION_LESSON_FINISHED = "com.douncoding.guaranteed.ACTION_LESSON_FINISHED";
+    public static final String ACTION_BEACON_EVENT = "com.douncoding.guaranteed.ACTION_BEACON_EVENT";
     public static final String ACTION_LESSON_TRACK = "ACTION_LESSON_TRACK";
 
     public static final String EXTRA_ENTER_TIME = "EXTRA_ENTER_TIME";
@@ -53,6 +59,7 @@ public class RegionEnterActivity extends Activity {
      */
     NotificationManager mNotificationManager;
     AppContext mApp;
+    WebService mWebService;
 
     /**
      * UI
@@ -96,45 +103,50 @@ public class RegionEnterActivity extends Activity {
                 finish();
             }
         });
+
         mNotificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
         mApp = (AppContext)getApplication();
-    }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        mNotificationManager = null;
-    }
+        mWebService = mApp.getWebServiceInstance();
 
-    @Override
-    protected void onResume() {
-        super.onResume();
+
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         RingtoneManager.getRingtone(this, sound).play();
 
         String action = getIntent().getAction();
         if (action.equals(ACTION_LESSON_FINISHED)) {
             Log.i(TAG, "수업종료 인텐트 수신");
-            int timeId = getIntent().getIntExtra(EXTRA_LESSONTIME_ID, -1);
-            String enterTime = getIntent().getStringExtra(EXTRA_ENTER_TIME);
 
-            for (Track track : mApp.openDBReadable().getTrackDao().loadAll()) {
-                if (track.getLessonTimeId() == timeId) {
-                    switch (track.getState()) {
-                        case STATE_DATA_ENTER:
-                            attendAuthSuccess(timeId);
-                            track.delete();
-                            break;
-                        case STATE_DATA_EXIT:
-                            attendAuthFailure(timeId);
-                            track.delete();
-                            break;
-                    }
+            int timeId = getIntent().getIntExtra(EXTRA_LESSONTIME_ID, -1);
+
+            // 비콘 관리목록 초기화
+            sendLocalBroadcast();
+
+            Track findTrack = getTrackOfLessonTime(timeId);
+            if (findTrack != null) {
+                findTrack.setExitTime(new Date());
+
+                // 출석처리
+                authAttendance(findTrack, timeId);
+
+                switch (findTrack.getState()) {
+                    case STATE_DATA_ENTER: // 출석 또는 지각
+                        attendAuthSuccess(timeId);
+                        break;
+                    case STATE_DATA_EXIT: // 결석
+                        attendAuthFailure(timeId);
+                        break;
                 }
+                findTrack.delete();
+            } else {
+                Log.w(TAG, "트랙번호를 찾을수 없음:");
             }
+
         } else if (action.equals(ACTION_BEACON_EVENT)){
             int state = getIntent().getIntExtra(EXTRA_ENTER_STATE, 2);
             int timeId = getIntent().getIntExtra(EXTRA_LESSONTIME_ID, -1);
+
+            Log.w(TAG, "ACTION_BEACON_EVENT 수신");
 
             manageTrack(timeId, state);
 
@@ -152,6 +164,17 @@ public class RegionEnterActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mNotificationManager = null;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
     public void sendNotification(String message) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_region_enter)
@@ -161,6 +184,75 @@ public class RegionEnterActivity extends Activity {
         //builder.setSound();
         builder.setAutoCancel(true);
         mNotificationManager.notify(NOTIFICATION_ID, builder.build());
+    }
+
+
+    /**
+     *
+     */
+    private void authAttendance(Track track, int timeId) {
+        int attendanceState;
+
+        LessonTime item = mApp.openDBReadable().getLessonTimeDao().load((long)timeId);
+        String[] startHourAndMin = item.getStartTime().split(":");
+
+        Date enterTime = track.getEnterTime();
+
+        // 강의실 입장 시간
+        Calendar ec = Calendar.getInstance();
+        ec.setTime(enterTime);
+
+        // 강의 시작시간
+        Calendar sc = Calendar.getInstance();
+        sc.setTime(enterTime);
+        sc.set(Calendar.HOUR_OF_DAY, Integer.valueOf(startHourAndMin[0]));
+        sc.set(Calendar.MINUTE, Integer.valueOf(startHourAndMin[1]));
+
+        // 출석:1 / 지각:2
+        if (ec.getTimeInMillis() > sc.getTimeInMillis()){
+            attendanceState = 2;
+        } else {
+            attendanceState = 1;
+        }
+
+        Attendance attendance = new Attendance();
+        attendance.setState(attendanceState);
+        attendance.setEnterTime(ec.getTime());
+        attendance.setExitTime(track.getExitTime());
+
+        mWebService.attend(attendance, (int)item.getLid(), mApp.내정보.얻기().getId().intValue()).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                Log.d(TAG, "출석처리 결과:" + response.code());
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+
+            }
+        });
+    }
+
+    /**
+     * 관리비콘을 초기화 하라는 메시지를 서비스로 알림
+     * 한 강의실에서 반복적인 수업이 있는 경우를 대비함
+     */
+    private void sendLocalBroadcast() {
+        LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(this);
+        Intent intent = new Intent();
+        intent.setAction(Constants.BROADCAST_ACTION);
+        localBroadcastManager.sendBroadcast(intent);
+    }
+
+
+    private Track getTrackOfLessonTime(int lessonTimeId) {
+        TrackDao dao = mApp.openDBReadable().getTrackDao();
+        for (Track track : dao.loadAll()) {
+            if (track.getLessonTimeId() == lessonTimeId) {
+                return track;
+            }
+        }
+        return null;
     }
 
     /**
@@ -173,38 +265,35 @@ public class RegionEnterActivity extends Activity {
      * @param state 상태
      */
     private void manageTrack(int lessonTimeId, int state) {
-        for (Track track : mApp.openDBReadable().getTrackDao().loadAll()) {
-            String debug = String.format(Locale.getDefault(),
-                    "상태(%d/%d) 트랙(%d/%d)",
-                    track.getState(), state,
-                    track.getLessonTimeId(), lessonTimeId);
-            Log.e(TAG, "CHECK:" + debug);
+        TrackDao dao = mApp.openDBReadable().getTrackDao();
 
-            if (track.getLessonTimeId() == lessonTimeId) {
+        Track findTrack = getTrackOfLessonTime(lessonTimeId);
+
+        if (findTrack == null) {
+            if (state == STATE_DATA_ENTER) {
+                Log.i(TAG, "최초입장: 현재시간을 출입시간으로 기록:");
+                Track track = new Track();
+                track.setLessonTimeId(lessonTimeId);
                 track.setState(state);
-                switch (state) {
-                    case STATE_DATA_ENTER:
-                        Log.i(TAG, "재입장");
-                        break;
-                    case STATE_DATA_EXIT:
-                        Log.i(TAG, "퇴장");
-                        break;
-                }
-                return;
+                track.setEnterTime(new Date());
+                dao.insertOrReplace(track);
+                registerAlarm((int)track.getLessonTimeId());
+            } else {
+                Log.w(TAG, "퇴장상태 중 퇴장 이벤트 수신");
+            }
+        } else {
+            findTrack.setState(state);
+            switch (state) {
+                case STATE_DATA_ENTER:
+                    Log.i(TAG, "재입장");
+                    registerAlarm((int)findTrack.getLessonTimeId());
+                    break;
+                case STATE_DATA_EXIT:
+                    Log.i(TAG, "퇴장");
+                    //unregisterAlarm((int)findTrack.getLessonTimeId());
+                    break;
             }
         }
-
-        Log.i(TAG, "최초입장");
-        Track newTrack = new Track();
-        newTrack.setLessonTimeId(lessonTimeId);
-        newTrack.setState(state);
-        mApp.openDBWritable().getTrackDao().insert(newTrack);
-        setAlarm(lessonTimeId);
-    }
-
-    private int getStateManageTrack(int lessonTimeId) {
-
-        return -1;
     }
 
     /**
@@ -282,7 +371,7 @@ public class RegionEnterActivity extends Activity {
         Lesson lesson = time.getLesson();
 
         // UI 처리
-        mTitleView.setText("출석!");
+        mTitleView.setText("결석!");
         mContentView.setText(String.format(Locale.getDefault()
                 ,"%s 출석 인증에 실패 하였습니다."
                 , lesson.getName()));
@@ -294,7 +383,7 @@ public class RegionEnterActivity extends Activity {
         mStateImageView.setBackgroundResource(R.color.colorRed);
     }
 
-    private void setAlarm(int lessonTimeId) {
+    private void registerAlarm(int lessonTimeId) {
         LessonTime time = mApp.openDBReadable()
                 .getLessonTimeDao()
                 .load(Long.valueOf(lessonTimeId));
@@ -308,15 +397,41 @@ public class RegionEnterActivity extends Activity {
         intent.putExtra(EXTRA_LESSONTIME_ID, lessonTimeId);
         intent.putExtra(EXTRA_ENTER_TIME, c.getTime().toString());
 
-        PendingIntent pending = PendingIntent.getActivity(
-                this, 0, intent, 0);
+        PendingIntent pending = PendingIntent.getActivity(this, lessonTimeId, intent, 0);
+        if (pending != null) {
+            unregisterAlarm(lessonTimeId);
+            Log.i(TAG, "수업종료 알람 재설정:");
+        }
 
         c.set(Calendar.HOUR_OF_DAY, Integer.valueOf(endHourAndMin[0]));
         c.set(Calendar.MINUTE, Integer.valueOf(endHourAndMin[1]));
-        c.set(Calendar.SECOND, 0);
+
+        /*
+        if ((c.getTimeInMillis() < Calendar.getInstance().getTimeInMillis()) {
+            Log.e(TAG, String.format(Locale.getDefault(),
+                    "알람설정 시간이 현재시간 보다 낮음: 현재:%s 예약:%s",
+                    c.getTime(), Calendar.getInstance().getTime()));
+            return;
+        }
+        */
 
         AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
         alarmManager.set(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), pending);
         Log.i(TAG, "수업종료 알람설정: 예약시간:" + c.getTime());
+    }
+
+    private void unregisterAlarm(int lessonTimeId) {
+        Intent intent = new Intent();
+
+        PendingIntent pending = PendingIntent.getActivity(this, lessonTimeId, intent, 0);
+        if (pending == null) {
+            Log.d(TAG, "등록된 알람없음");
+        } else {
+            Log.d(TAG, "등록된 알람존재");
+        }
+
+        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+        alarmManager.cancel(pending);
+        Log.i(TAG, "수업종료 알람해제: 식별자:" + lessonTimeId);
     }
 }

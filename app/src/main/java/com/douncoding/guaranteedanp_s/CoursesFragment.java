@@ -45,7 +45,6 @@ public class CoursesFragment extends Fragment implements
      * UI
      */
     WeekView mWeekView;
-    View mSnackbarView;
 
     public static CoursesFragment newInstance() {
         CoursesFragment fragment = new CoursesFragment();
@@ -69,8 +68,6 @@ public class CoursesFragment extends Fragment implements
         mWeekView = (WeekView)view.findViewById(R.id.weekView);
         mWeekView.setMonthChangeListener(this);
 
-        // Snackbar 출력 위치
-        mSnackbarView = view;
         return view;
     }
 
@@ -101,6 +98,7 @@ public class CoursesFragment extends Fragment implements
     @Override
     public void onResume() {
         super.onResume();
+        mWeekView.notifyDatasetChanged();
     }
 
     /**

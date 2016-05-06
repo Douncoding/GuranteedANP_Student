@@ -1,9 +1,20 @@
 package com.douncoding.guaranteedanp_s;
 
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.SystemClock;
+import android.support.v4.content.LocalBroadcastManager;
+import android.support.v4.content.WakefulBroadcastReceiver;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
 import com.douncoding.dao.Lesson;
@@ -26,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class BeaconService extends Service implements BeaconConsumer {
+
     public static final String TAG = BeaconService.class.getSimpleName();
     public static final String ACTION_SERVICE_STOP = "com.douncoding.SERVICE_STOP";
 
@@ -67,6 +79,38 @@ public class BeaconService extends Service implements BeaconConsumer {
         mBeaconManager.bind(this);
 
         mApp = (AppContext)getApplication();
+
+        // Foreground 서비스 등록
+        Notification noti = new NotificationCompat.Builder(this)
+                .setContentTitle(getResources().getString(R.string.app_name))
+                .setContentText("실행중")
+                .setSmallIcon(R.drawable.ic_star_name)
+                .build();
+        startForeground(2, noti);
+
+        // 브로드케스트 리시버 등록
+        LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(this);
+        IntentFilter filter = new IntentFilter(Constants.BROADCAST_ACTION);
+        filter.addCategory(Intent.CATEGORY_DEFAULT);
+
+        broadcastManager.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                /**
+                 * 방법없다.. 설계를 잘못했다.. 모든 목록 클리어 간다..
+                 */
+                 new Handler().postDelayed(new Runnable() {
+                     @Override
+                     public void run() {
+                         synchronized (this) {
+                             addNotifiedBeacons.clear();
+                             Log.i(TAG, "초기화 브로드캐스트 수신: 모든 이벤트 활성화");
+                         }
+                     }
+                 }, 60 * 1000);
+
+            }
+        }, filter);
     }
 
     @Override
@@ -76,9 +120,10 @@ public class BeaconService extends Service implements BeaconConsumer {
 
         enterBeacons = null;
         mBeaconManager.unbind(this);
+
+        // 종료시 재시작
+        registerRestartAlarm();
     }
-
-
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -125,8 +170,10 @@ public class BeaconService extends Service implements BeaconConsumer {
         processEvent(beacon.getId1().toString(), RegionEnterActivity.STATE_DATA_EXIT);
 
         // 이벤트가 발생하지 않은 경우도 처리
-        addNotifiedBeacons.remove(beacon);
-        Log.i(TAG, "이벤트 발생목록: 삭제");
+        if (addNotifiedBeacons.remove(beacon))
+            Log.i(TAG, "이벤트 발생목록: 삭제");
+        else
+            Log.w(TAG, "입장 이벤트가 발생했던 이력이 없는 퇴장 이벤트는 무시한다.");
     }
 
     /**
@@ -159,7 +206,7 @@ public class BeaconService extends Service implements BeaconConsumer {
             if (!beacons.contains(beacon)) {
                 int deboundCount = entry.getValue();
 
-                if (deboundCount > 0) {
+                if (deboundCount > -deboundThreshold) {
                     enterBeacons.put(beacon, --deboundCount);
                     Log.d(TAG, "감소: 디바운싱 카운트: " + deboundCount);
                 } else {
@@ -196,11 +243,12 @@ public class BeaconService extends Service implements BeaconConsumer {
                     Log.i(TAG, String.format(Locale.getDefault(), "%s 시작시간:%s 종료시간:%s",
                             lesson.getName(), time.getStartTime(), time.getEndTime()));
 
+                    Log.w(TAG, "RegionEnterActivity Call!");
                     Intent intent = new Intent(BeaconService.this, RegionEnterActivity.class);
                     intent.setAction(RegionEnterActivity.ACTION_BEACON_EVENT);
                     intent.putExtra(RegionEnterActivity.EXTRA_ENTER_STATE, state);
                     intent.putExtra(RegionEnterActivity.EXTRA_LESSONTIME_ID, time.getId().intValue());
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP );
                     startActivity(intent);
                     return true;
                 }
@@ -222,7 +270,7 @@ public class BeaconService extends Service implements BeaconConsumer {
 
         for (Place place : placeList) {
             if (place.getUuid().equals(uuid)) {
-                Log.i(TAG, String.format(Locale.getDefault(), "발생위치 강의실:%s 번호:%d",
+                Log.d(TAG, String.format(Locale.getDefault(), "발생위치 강의실:%s 번호:%d",
                         place.getName(), place.getId().intValue()));
                 return place.getId().intValue();
             }
@@ -272,7 +320,7 @@ public class BeaconService extends Service implements BeaconConsumer {
         // 사이 날짜인지 확인
         if (currentDate.getTimeInMillis() < startDate.getTimeInMillis() ||
                 currentDate.getTimeInMillis() > endDate.getTimeInMillis()) {
-            Log.i(TAG, "포함되지 않는 날짜: " +
+            Log.v(TAG, "포함되지 않는 날짜: " +
                     String.format(Locale.getDefault(), "시작:%d 현재:%d 종료:%d",
                             startDate.getTimeInMillis(),
                             currentDate.getTimeInMillis(),
@@ -282,7 +330,7 @@ public class BeaconService extends Service implements BeaconConsumer {
 
         // 요일이 같은지 확인
         if (currentDate.get(Calendar.DAY_OF_WEEK) != time.getDay()) {
-            Log.i(TAG, "현재 요일:" + currentDate.get(Calendar.DAY_OF_WEEK) +
+            Log.v(TAG, "현재 요일:" + currentDate.get(Calendar.DAY_OF_WEEK) +
                     " 과목 요일:" + time.getDay());
             return false;
         }
@@ -298,7 +346,7 @@ public class BeaconService extends Service implements BeaconConsumer {
         // 사이 날짜인지 확인
         if (currentDate.getTimeInMillis() < startTime.getTimeInMillis() ||
                 currentDate.getTimeInMillis() > endTime.getTimeInMillis()) {
-            Log.i(TAG, "포함되지 않는 시간: " +
+            Log.v(TAG, "포함되지 않는 시간: " +
                     String.format(Locale.getDefault(), "시작:%s 현재:%s 종료:%s",
                             startDate.getTime(),
                             currentDate.getTime(),
@@ -314,5 +362,21 @@ public class BeaconService extends Service implements BeaconConsumer {
                         endDate.getTimeInMillis()));
         return true;
     }
+
+    /**
+     * 서비스가 강제종료된 경우 10초 뒤 재시작
+     */
+    void registerRestartAlarm() {
+        Log.w(TAG, "10초 뒤 서비스를 재시작");
+        Intent intent = new Intent(this, BeaconService.class);
+
+        PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, 0);
+        long firstTime = SystemClock.elapsedRealtime();
+        firstTime += 10*1000; // 10초 후에 알람이벤트 발생
+        AlarmManager am = (AlarmManager)getSystemService(ALARM_SERVICE);
+        am.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, firstTime, 10*1000, pendingIntent);
+    }
+
+
 }
 

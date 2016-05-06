@@ -7,7 +7,7 @@ import de.greenrobot.daogenerator.Schema;
 
 public class MainGenerator {
     public static void main(String[] args) throws Exception {
-        Schema schema = new Schema(18, "com.douncoding.dao");
+        Schema schema = new Schema(19, "com.douncoding.dao");
         schema.enableActiveEntitiesByDefault();
 
         addTables(schema);
@@ -101,6 +101,8 @@ public class MainGenerator {
         Entity track = schema.addEntity("Track");
         track.addIdProperty().primaryKey().autoincrement();
         track.addIntProperty("state");
+        track.addDateProperty("enterTime");
+        track.addDateProperty("exitTime");
 
         return track;
     }
