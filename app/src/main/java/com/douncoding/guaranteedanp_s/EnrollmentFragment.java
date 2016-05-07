@@ -173,6 +173,11 @@ public class EnrollmentFragment extends Fragment {
                     SimpleDateFormat format = new SimpleDateFormat("yy년 MM월 dd일 EEE", Locale.KOREA);
                     holder.mStartDateText.setText(format.format(item.getLessonTimeList().get(0).getStartDate()));
                     holder.mEndDateText.setText(format.format(item.getLessonTimeList().get(0).getEndDate()));
+
+                    holder.mTimeList.setLayoutManager(new LinearLayoutManager(getContext()));
+                    LessonTimeAdapter timeAdapter = new LessonTimeAdapter();
+                    timeAdapter.addItem(item.getLessonTimeList());
+                    holder.mTimeList.setAdapter(timeAdapter);
                 }
             } else {
                 holder.mExpandedView.setVisibility(View.GONE);
@@ -218,6 +223,7 @@ public class EnrollmentFragment extends Fragment {
             EditText mPersonnelText;
             EditText mStartDateText;
             EditText mEndDateText;
+            RecyclerView mTimeList;
 
             public ViewHolder(View itemView) {
                 super(itemView);
@@ -241,6 +247,7 @@ public class EnrollmentFragment extends Fragment {
                 mPersonnelText = (EditText)itemView.findViewById(R.id.personnel_text);
                 mStartDateText = (EditText)itemView.findViewById(R.id.start_date_text);
                 mEndDateText = (EditText)itemView.findViewById(R.id.end_date_text);
+                mTimeList = (RecyclerView)itemView.findViewById(R.id.time_list);
             }
 
             @Override
@@ -314,6 +321,69 @@ public class EnrollmentFragment extends Fragment {
                         });
                         break;
                 }
+            }
+        }
+    }
+
+    class LessonTimeAdapter extends RecyclerView.Adapter<LessonTimeAdapter.ViewHolder> {
+
+        ArrayList<LessonTime> dataset = new ArrayList<>();
+
+        @Override
+        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_list_lesson_time, parent, false);
+
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(ViewHolder holder, int position) {
+            LessonTime item = dataset.get(position);
+
+            holder.mWeekText.setText(CommonUtils.dayOfString(item.getDay()));
+            holder.mStartTimeText.setText(item.getStartTime());
+            holder.mEndTimeText.setText(item.getEndTime());
+        }
+
+        @Override
+        public int getItemCount() {
+            return dataset.size();
+        }
+
+        public boolean addItem(List<LessonTime> items) {
+            if (items == null) {
+                Log.w(TAG, "갱신하고자 하는 항목이 NULL 상태: ");
+                return false;
+            }
+
+            dataset.addAll(items);
+            notifyDataSetChanged();
+            return true;
+        }
+
+        public List<LessonTime> get() {
+            return dataset;
+        }
+
+        public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+            TextView mWeekText;
+            TextView mStartTimeText;
+            TextView mEndTimeText;
+
+            public ViewHolder(View itemView) {
+                super(itemView);
+
+                mStartTimeText = (TextView)itemView.findViewById(R.id.item_start_time);
+                mEndTimeText = (TextView)itemView.findViewById(R.id.item_end_time);
+                mWeekText = (TextView)itemView.findViewById(R.id.item_week);
+
+                itemView.setOnClickListener(this);
+            }
+
+            @Override
+            public void onClick(View v) {
+
             }
         }
     }
