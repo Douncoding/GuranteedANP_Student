@@ -174,10 +174,13 @@ public class EnrollmentFragment extends Fragment {
                     holder.mStartDateText.setText(format.format(item.getLessonTimeList().get(0).getStartDate()));
                     holder.mEndDateText.setText(format.format(item.getLessonTimeList().get(0).getEndDate()));
 
+                    holder.mTimeList.setVisibility(View.VISIBLE);
                     holder.mTimeList.setLayoutManager(new LinearLayoutManager(getContext()));
                     LessonTimeAdapter timeAdapter = new LessonTimeAdapter();
                     timeAdapter.addItem(item.getLessonTimeList());
                     holder.mTimeList.setAdapter(timeAdapter);
+                } else {
+                    holder.mTimeList.setVisibility(View.GONE);
                 }
             } else {
                 holder.mExpandedView.setVisibility(View.GONE);

@@ -1,35 +1,27 @@
 package com.douncoding.guaranteedanp_s;
 
-import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.AsyncTask;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import com.alamkanak.weekview.MonthLoader;
 import com.alamkanak.weekview.WeekView;
 import com.alamkanak.weekview.WeekViewEvent;
 import com.douncoding.dao.Lesson;
-import com.douncoding.dao.LessonDao;
 import com.douncoding.dao.LessonTime;
-import com.douncoding.dao.LessonTimeDao;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
-import java.util.StringTokenizer;
-
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 public class CoursesFragment extends Fragment implements
         MonthLoader.MonthChangeListener {
@@ -39,12 +31,18 @@ public class CoursesFragment extends Fragment implements
      * 내부 자원 및 통신 자원 할당
      */
     AppContext mApp;
-    WebService mWebService;
+    PrincipalInteractor mPrincipalInteractor;
 
     /**
      * UI
      */
     WeekView mWeekView;
+
+    /**
+     * Hide Options
+     */
+    int hideCount = 0;
+    BroadcastSender mBroadcastSender;
 
     public static CoursesFragment newInstance() {
         CoursesFragment fragment = new CoursesFragment();
@@ -58,6 +56,15 @@ public class CoursesFragment extends Fragment implements
         super.onAttach(context);
 
         mApp = (AppContext)context.getApplicationContext();
+        mPrincipalInteractor = new PrincipalInteractor(mApp);
+        mBroadcastSender = new BroadcastSender(context);
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        mApp = null;
+        mPrincipalInteractor = null;
     }
 
     @Nullable
@@ -68,31 +75,31 @@ public class CoursesFragment extends Fragment implements
         mWeekView = (WeekView)view.findViewById(R.id.weekView);
         mWeekView.setMonthChangeListener(this);
 
+        mWeekView.setShowNowLine(true);
+        mWeekView.setNowLineColor(Color.BLUE);
+
+        mWeekView.setOnEventClickListener(new WeekView.EventClickListener() {
+            @Override
+            public void onEventClick(WeekViewEvent event, RectF eventRect) {
+                if (hideCount++ > 5) {
+                    Toast.makeText(getContext()
+                            , "테스트코드 실행" + event.getEndTime().getTime()
+                            , Toast.LENGTH_SHORT).show();
+                    moveToEnterActivity(RegionEnterActivity.STATE_DATA_EXIT, (int)event.getId());
+                    hideCount = 0;
+                }
+
+                Log.i(TAG, "테스트코드: " + hideCount);
+            }
+        });
+
         return view;
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-
         mWeekView = null;
-    }
-
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(Constants.HOST)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-
-        mWebService = retrofit.create(WebService.class);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mWebService = null;
     }
 
     @Override
@@ -113,62 +120,62 @@ public class CoursesFragment extends Fragment implements
     public List<? extends WeekViewEvent> onMonthChange(int newYear, int newMonth) {
         List<WeekViewEvent> events = new ArrayList<>();
 
-        List<Lesson> lessons = mApp.openDBReadable().getLessonDao().loadAll();
+        for (Lesson lesson : mPrincipalInteractor.getOwnLessonList()) {
+            List<LessonTime> times = lesson.getLessonTimeList();
 
-        // 내 수강목록 읽기
-        for (Lesson lesson : lessons) {
-            if (lesson.getEnrollment() == null || lesson.getEnrollment() != 1)
+            // 등록된 강의시간이 없는 경우 제외
+            if (times == null || times.size() == 0)
                 continue;
 
-            List<LessonTime> times = lesson.getLessonTimeList();
-            for (LessonTime time : times) {
-                // 오늘일자 포함되는 과목만 불러오기
-                Calendar currentDate = Calendar.getInstance();
-                Calendar startDate = Calendar.getInstance();
-                Calendar endDate = Calendar.getInstance();
+            Calendar sc = Calendar.getInstance();
+            Calendar ec = Calendar.getInstance();
+            sc.setTime(times.get(0).getStartDate());
+            ec.setTime(times.get(0).getEndDate());
 
-                startDate.setTime(time.getStartDate());
-                endDate.setTime(time.getEndDate());
+            // 월이 다른 경우 제외
+            if (sc.get(Calendar.MONTH) != newMonth-1)
+                continue;
 
-                // 사이 날짜인지 확인
-                if (currentDate.getTimeInMillis() < startDate.getTimeInMillis() ||
-                        currentDate.getTimeInMillis() > endDate.getTimeInMillis()) {
-                    Log.v(TAG, "포함되지 않는 날짜: " +
-                        String.format(Locale.getDefault(), "시작:%d 현재:%d 종료:%d",
-                                startDate.getTimeInMillis(),
-                                currentDate.getTimeInMillis(),
-                                endDate.getTimeInMillis()));
-                    continue;
+            // 시작일 부터 종료일 까지
+            while (sc.getTimeInMillis() < ec.getTimeInMillis()) {
+                sc.add(Calendar.DATE, 1);
+
+                for (LessonTime day : times) {
+                    if (sc.get(Calendar.DAY_OF_WEEK) == day.getDay()) {
+                        String[] startHourAndMin = day.getStartTime().split(":");
+                        String[] endHourAndMin = day.getEndTime().split(":");
+
+                        Calendar startTime = Calendar.getInstance();
+                        startTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(startHourAndMin[0]));
+                        startTime.set(Calendar.MINUTE, Integer.valueOf(startHourAndMin[1]));
+                        startTime.set(Calendar.DATE, sc.get(Calendar.DATE));
+                        startTime.set(Calendar.MONTH, newMonth-1);
+                        startTime.set(Calendar.YEAR, newYear);
+
+                        Calendar endTime = Calendar.getInstance();
+                        endTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(endHourAndMin[0]));
+                        endTime.set(Calendar.MINUTE, Integer.valueOf(endHourAndMin[1]));
+                        endTime.set(Calendar.DATE, sc.get(Calendar.DATE));
+                        endTime.set(Calendar.MONTH, newMonth-1);
+                        endTime.set(Calendar.YEAR, newYear);
+                        WeekViewEvent ev = new WeekViewEvent(day.getId(), lesson.getName(), startTime, endTime);
+                        ev.setColor(getResources().getColor(R.color.colorPrimaryLight));
+                        events.add(ev);
+                    }
                 }
-
-                // 요일 확인
-                if (currentDate.get(Calendar.DAY_OF_WEEK) != time.getDay()) {
-                    Log.v(TAG, "현재 요일:" + currentDate.get(Calendar.DAY_OF_WEEK) +
-                        " 과목 요일:" + time.getDay());
-                    continue;
-                }
-
-                // 시간표작성
-                String[] startHourAndMin = time.getStartTime().split(":");
-                String[] endHourAndMin = time.getEndTime().split(":");
-
-                Calendar startTime = Calendar.getInstance();
-                startTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(startHourAndMin[0]));
-                startTime.set(Calendar.MINUTE, Integer.valueOf(startHourAndMin[0]));
-                startTime.set(Calendar.MONTH, newMonth-1);
-                startTime.set(Calendar.YEAR, newYear);
-
-                Calendar endTime = Calendar.getInstance();
-                endTime.set(Calendar.HOUR_OF_DAY, Integer.valueOf(endHourAndMin[0]));
-                endTime.set(Calendar.MINUTE, Integer.valueOf(endHourAndMin[0]));
-                endTime.set(Calendar.MONTH, newMonth-1);
-                endTime.set(Calendar.YEAR, newYear);
-
-                WeekViewEvent ev = new WeekViewEvent(1, lesson.getName(), startTime, endTime);
-                events.add(ev);
             }
         }
 
         return events;
+    }
+
+    private void moveToEnterActivity(int state, int lessonTimeId) {
+        Log.i(TAG, "출석처리 요청: 상태:" + state + " 강의시간번호:" + lessonTimeId);
+        Intent intent = new Intent(getContext(), RegionEnterActivity.class);
+        intent.setAction(RegionEnterActivity.ACTION_BEACON_EVENT_TEST);
+        intent.putExtra(RegionEnterActivity.EXTRA_ENTER_STATE, state);
+        intent.putExtra(RegionEnterActivity.EXTRA_LESSONTIME_ID, lessonTimeId);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+        startActivity(intent);
     }
 }

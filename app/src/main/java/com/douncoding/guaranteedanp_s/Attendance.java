@@ -8,6 +8,7 @@ public class Attendance {
     Date enterTime;
     Date exitTime;
     int eid; // Enrollment ID
+    int ltid; // LessonTime ID
 
     public int getId() {
         return id;
@@ -47,5 +48,13 @@ public class Attendance {
 
     public void setEid(int eid) {
         this.eid = eid;
+    }
+
+    public int getLtid() {
+        return ltid;
+    }
+
+    public void setLtid(int ltid) {
+        this.ltid = ltid;
     }
 }

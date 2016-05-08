@@ -51,20 +51,6 @@ public class AppContext extends Application {
         openDBWritable().getPlaceDao().deleteAll();
     }
 
-    /*
-    // 실제 안드로이드에서 발생하지 않는 콜백이며, 에뮬레이터에서만 발생 한다.
-    // 즉, 로그아웃 버튼을 통해 다음과정을 초기화하는 절차를 옮긴다.
-    @Override
-    public void onTerminate() {
-        super.onTerminate();
-
-        // Return Database Resource
-        mHelper = null;
-
-        내정보.삭제();
-    }
-    */
-
     public DaoSession openDBReadable() {
         SQLiteDatabase database = mHelper.getReadableDatabase();
         DaoMaster daoMaster = new DaoMaster(database);
@@ -80,48 +66,6 @@ public class AppContext extends Application {
     public WebService getWebServiceInstance() {
         return mWebService;
     }
-
-    /**
-     * 현재 입장한 강의실의 상태를 관리
-    class Track {
-        SharedPreferences preferences;
-
-        public Track() {
-            preferences = getSharedPreferences(
-                    Constants.PREFERENCE_NAME, Context.MODE_PRIVATE);
-        }
-
-        public void saveState(int lessonTimeId, int state) {
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putInt("trackId", lessonTimeId);
-            editor.putInt("trackState", state);
-            editor.apply();
-        }
-
-        public int getCurrentTrackId() {
-            return preferences.getInt("trackId", -1);
-        }
-
-        public int getStateOfTrack(int lessonTimeId) {
-            int id = preferences.getInt("trackId", -1);
-
-            if (id != lessonTimeId) {
-                Log.e(TAG, String.format(Locale.getDefault(),
-                        "요청번호:%d 현재번호:%d", lessonTimeId, id));
-                return -1;
-            } else {
-                return preferences.getInt("trackState", -1);
-            }
-        }
-
-        public void clearState(int lessonTimeId) {
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putInt("trackId", -1);
-            editor.putInt("trackState", -1);
-            editor.apply();
-        }
-    }
-     */
 
     /**
      * 로그인 상태를 관리한다. 웹 서버와 세션처리가 없는 구조임에 따라

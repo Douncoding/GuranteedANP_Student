@@ -18,8 +18,6 @@
         app:columnGap="8dp"
         app:noOfVisibleDays="1"
         app:headerRowBackgroundColor="#ffefefef"
-        app:dayBackgroundColor="#05000000"
-        app:todayBackgroundColor="#1848adff"
         app:headerColumnBackground="#ffffffff"/>
     
 </LinearLayout>
