@@ -36,7 +36,6 @@ public class PrincipalInteractor {
 
     public PrincipalInteractor(@NonNull AppContext aApp) {
         this.mApp = aApp;
-        this.mWebService = mApp.getWebServiceInstance();
 
         this.mLoadStatus = new HashMap<>();
     }
@@ -73,6 +72,8 @@ public class PrincipalInteractor {
      * 매우 주의깊게 사용되야 한다.
      */
     public void sync() {
+        mWebService = mApp.getWebServiceInstance();
+
         Log.w(TAG, "데이터베이스 초기화");
         mApp.openDBWritable().getLessonDao().deleteAll();
         mApp.openDBWritable().getPlaceDao().deleteAll();

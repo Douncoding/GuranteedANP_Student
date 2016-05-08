@@ -24,9 +24,6 @@ public class AppContext extends Application {
     // 데이터베이스 인터페이스
     DaoMaster.DevOpenHelper mHelper;
 
-    // 통신 인터페이스
-    WebService mWebService;
-
     MyAccount 내정보;
 
     @Override
@@ -37,12 +34,6 @@ public class AppContext extends Application {
         mHelper = new DaoMaster.DevOpenHelper(this, Constants.DATABASE_NAME, null);
 
         내정보 = new MyAccount();
-
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(Constants.HOST)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        mWebService = retrofit.create(WebService.class);
 
         // 모든 테이블 초기화 - 로딩과정 중 재생성
         openDBWritable().getInstructorDao().deleteAll();
@@ -64,7 +55,11 @@ public class AppContext extends Application {
     }
 
     public WebService getWebServiceInstance() {
-        return mWebService;
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(Constants.HOST)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        return retrofit.create(WebService.class);
     }
 
     /**
